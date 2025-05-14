@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>मुफ्त इमेज से PDF कन्वर्टर</title>
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sortablejs/1.15.0/sortable.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f0f2f5;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #1a73e8;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .upload-section {
+            border: 3px dashed #1a73e8;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: 0.3s;
+            background: #f8f9fa;
+        }
+
+        .upload-section:hover {
+            background: #e8f0fe;
+            border-style: solid;
+        }
+
+        #imageInput {
+            display: none;
+        }
+
+        .custom-upload-btn {
+            background: #1a73e8;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            display: inline-block;
+            transition: 0.3s;
+            border: none;
+            font-size: 16px;
+        }
+
+        .custom-upload-btn:hover {
+            background: #1557b0;
+            transform: translateY(-2px);
+        }
+
+        #imagePreview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 25px;
+            min-height: 150px;
+        }
+
+        .preview-image {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            transition: 0.3s;
+        }
+
+        .preview-image:hover {
+            transform: scale(1.05);
+        }
+
+        .preview-image img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: none;
+        }
+
+        .preview-image:hover .remove-btn {
+            display: block;
+        }
+
+        .convert-btn {
+            background: #28a745;
+            color: white;
+            padding: 15px 40px;
+            font-size: 18px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            display: block;
+            margin: 30px auto 0;
+            transition: 0.3s;
+        }
+
+        .convert-btn:hover {
+            background: #218838;
+            transform: scale(1.05);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #1a73e8;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .upload-section {
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ इमेज से PDF बनाएं</h1>
+        
+        <div class="upload-section" onclick="document.getElementById('imageInput').click()">
+            <div class="custom-upload-btn">
+                📁 इमेज चुनें या यहां छोड़ें
+            </div>
+            <p style="margin-top: 15px; color: #666;">JPEG, PNG, WEBP सपोर्टेड</p>
+        </div>
+
+        <input type="file" id="imageInput" multiple accept="image/*">
+        
+        <div id="imagePreview"></div>
+        
+        <button class="convert-btn" onclick="convertToPdf()">PDF जनरेट करें 🚀</button>
+        <div class="loading" id="loading">कृपया प्रतीक्षा करें... ⏳</div>
+    </div>
+
+    <script>
+        let images = [];
+
+        // File Input Handler
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            images = Array.from(e.target.files);
+            displayPreview();
+        });
+
+        // Display Preview with Sorting
+        function displayPreview() {
+            const preview = document.getElementById('imagePreview');
+            preview.innerHTML = '';
+            
+            images.forEach((file, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'preview-image';
+                wrapper.dataset.index = index;
+                
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.innerHTML = '×';
+                removeBtn.onclick = () => removeImage(index);
+                
+                wrapper.appendChild(img);
+                wrapper.appendChild(removeBtn);
+                preview.appendChild(wrapper);
+            });
+
+            // Initialize Sortable
+            new Sortable(preview, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: (evt) => {
+                    const movedItem = images.splice(evt.oldIndex, 1)[0];
+                    images.splice(evt.newIndex, 0, movedItem);
+                }
+            });
+        }
+
+        // Remove Image
+        function removeImage(index) {
+            images.splice(index, 1);
+            displayPreview();
+        }
+
+        // Convert to PDF
+        async function convertToPdf() {
+            if(images.length === 0) {
+                alert("कृपया पहले कम से कम एक इमेज चुनें!");
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            loading.style.display = 'block';
+
+            try {
+                const pdf = new jspdf.jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                for(const [i, file] of images.entries()) {
+                    const imgUrl = URL.createObjectURL(file);
+                    const img = await loadImage(imgUrl);
+                    
+                    // Calculate dimensions to fit A4 page
+                    const width = pdf.internal.pageSize.getWidth() - 20;
+                    const height = (img.height * width) / img.width;
+                    
+                    pdf.addImage(img, 'JPEG', 10, 10, width, height);
+                    if(i < images.length-1) pdf.addPage();
+                }
+
+                pdf.save("converted.pdf");
+            } catch(error) {
+                alert("त्रुटि: PDF बनाने में असफल!");
+                console.error(error);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function loadImage(url) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.src = url;
+            });
+        }
+    </script>
+</body>
+</html>
